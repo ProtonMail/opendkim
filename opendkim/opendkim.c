@@ -247,6 +247,7 @@ struct dkimf_config
 	_Bool		conf_noheaderb;		/* suppress "header.b" */
 	_Bool		conf_singleauthres;	/* single Auth-Results */
 	_Bool		conf_safekeys;		/* check key permissions */
+	_Bool		conf_verifysigningtable; /* verify signing table */
 #ifdef _FFR_RESIGN
 	_Bool		conf_resignall;		/* resign unverified mail */
 #endif /* _FFR_RESIGN */
@@ -803,7 +804,7 @@ pthread_mutex_t pwdb_lock;			/* passwd/group lock */
 **  	An sfsistat.
 */
 
-sfsistat 
+sfsistat
 smfi_insheader(SMFICTX *ctx, int idx, char *hname, char *hvalue)
 {
 	assert(ctx != NULL);
@@ -1413,7 +1414,7 @@ dkimf_xs_rblcheck(lua_State *l)
 	ctx = (SMFICTX *) lua_touserdata(l, 1);
 	if (ctx != NULL)
 		cc = (struct connctx *) dkimf_getpriv(ctx);
-		
+
 	query = lua_tostring(l, 2);
 	qroot = lua_tostring(l, 3);
 	if (lua_gettop(l) == 4)
@@ -2715,7 +2716,7 @@ dkimf_xs_rcptcount(lua_State *l)
 	dfc = cc->cctx_msg;
 
 	rcnt = 0;
-	
+
 	for (addr = dfc->mctx_rcptlist; addr != NULL; addr = addr->a_next)
 		rcnt++;
 
@@ -2767,7 +2768,7 @@ dkimf_xs_rcpt(lua_State *l)
 		lua_pushstring(l, "dkimf_xs_rcpt");
 		return 1;
 	}
-	
+
 	cc = (struct connctx *) dkimf_getpriv(ctx);
 	dfc = cc->cctx_msg;
 
@@ -3090,7 +3091,7 @@ dkimf_xs_getsigarray(lua_State *l)
 	{
 		lua_pushnil(l);
 	}
-	
+
 	return 1;
 }
 
@@ -3156,7 +3157,7 @@ dkimf_xs_getsigcount(lua_State *l)
 	{
 		lua_pushnumber(l, 1);
 	}
-	
+
 	return 1;
 }
 
@@ -4762,7 +4763,7 @@ dkimf_securefile(const char *path, ino_t *ino, uid_t myuid, char *err,
 			return status;
 
 		if (partial[1] != '\0')
-			strlcat(partial, "/", sizeof partial); 
+			strlcat(partial, "/", sizeof partial);
 	}
 
 	return 1;
@@ -4818,7 +4819,7 @@ dkimf_securefile(const char *path, ino_t *ino, uid_t myuid, char *err,
 
 		pthread_mutex_unlock(&pwdb_lock);
 	}
-		
+
 	/* guess we're okay... */
 	*ino = s.st_ino;
 	return 1;
@@ -6208,7 +6209,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		{
 			if (strcmp(str, "HOSTNAME") == 0)
 				conf->conf_authservid = strdup(myhostname);
-			else	
+			else
 				conf->conf_authservid = strdup(str);
 		}
 
@@ -6317,7 +6318,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 
 #ifdef	_FFR_IDENTITY_HEADER
 		(void) config_get(data, "IdentityHeader",
-				  &conf->conf_identityhdr, 
+				  &conf->conf_identityhdr,
 				  sizeof conf->conf_identityhdr);
 
 		(void) config_get(data, "IdentityHeaderRemove",
@@ -6457,6 +6458,12 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		{
 			(void) config_get(data, "LogWhy", &conf->conf_logwhy,
 			                  sizeof conf->conf_logwhy);
+		}
+
+		if (!conf->conf_verifysigningtable)
+		{
+			(void) config_get(data, "VerifySigningTable", &conf->conf_verifysigningtable,
+			                  sizeof conf->conf_verifysigningtable);
 		}
 
 		(void) config_get(data, "LogResults", &conf->conf_logresults,
@@ -6991,7 +6998,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_peerdb, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7010,7 +7017,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 
 		status = dkimf_db_open(&conf->conf_testdnsdb,
 		                       conf->conf_testdnsdata,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7038,7 +7045,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_internal, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7055,7 +7062,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_internal, DEFINTERNAL,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7084,7 +7091,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_exignore, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7112,7 +7119,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_exemptdb, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7134,7 +7141,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_bldb, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7155,7 +7162,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_signhdrsdb, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7176,7 +7183,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_remardb, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7211,7 +7218,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_atpsdb, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -7233,7 +7240,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		char *dberr = NULL;
 
 		status = dkimf_db_open(&conf->conf_dontsigntodb, str,
-		                       (dbflags | 
+		                       (dbflags |
 		                        DKIMF_DB_FLAG_ICASE |
 		                        DKIMF_DB_FLAG_READONLY),
 		                       NULL, &dberr);
@@ -8179,7 +8186,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 
 				saveerrno = errno;
 
-				syslog(LOG_ERR, "malloc(): %s", 
+				syslog(LOG_ERR, "malloc(): %s",
 				       strerror(errno));
 
 				errno = saveerrno;
@@ -8287,7 +8294,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 		**  missing KeyTable entries.
 		*/
 
-		if (conf->conf_signtabledb != NULL)
+		if (conf->conf_signtabledb != NULL && conf->conf_verifysigningtable)
 		{
 			_Bool first = TRUE;
 			_Bool found;
@@ -8299,7 +8306,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 			char signer[BUFRSZ + 1];
 
 			dbd[0].dbdata_flags = 0;
-			
+
 			memset(keyname, '\0', sizeof keyname);
 
 			dbd[0].dbdata_buffer = keyname;
@@ -8324,7 +8331,7 @@ dkimf_config_load(struct config *data, struct dkimf_config *conf,
 				dbd[2].dbdata_buflen = sizeof keydata - 1;
 				dbd[2].dbdata_flags = DKIMF_DB_DATA_BINARY;
 
-				if (dkimf_db_get(conf->conf_keytabledb,	
+				if (dkimf_db_get(conf->conf_keytabledb,
 				                 keyname, strlen(keyname),
 				                 dbd, 3, &found) != 0 ||
 				    !found ||
@@ -8437,7 +8444,7 @@ dkimf_dns_init(DKIM_LIB *lib, struct dkimf_config *conf, char **err)
 		{
 			if (err != NULL)
 				*err = "failed to add resolver configuration file";
-	
+
 			return FALSE;
 		}
 	}
@@ -9247,7 +9254,7 @@ dkimf_cleanup(SMFICTX *ctx)
 			while (cur != NULL)
 			{
 				next = cur->se_next;
-	
+
 				free(cur);
 
 				cur = next;
@@ -10261,7 +10268,7 @@ dkimf_sigreport(connctx cc, struct dkimf_config *conf, char *hostname)
 				syslog(LOG_ERR, "%s: fdopen(): %s",
 				       dfc->mctx_jobid, strerror(errno));
 			}
-	
+
 			close(fd);
 			return;
 		}
@@ -10276,7 +10283,7 @@ dkimf_sigreport(connctx cc, struct dkimf_config *conf, char *hostname)
 				syslog(LOG_ERR, "%s: popen(): %s",
 				       dfc->mctx_jobid, strerror(errno));
 			}
-	
+
 			return;
 		}
 	}
@@ -11362,7 +11369,7 @@ mlfi_header(SMFICTX *ctx, char *headerf, char *headerv)
 		**  feed to the canonicalization algorithms the headers
 		**  exactly as the MTA will modify them, so verification
 		**  should still work.
-		**  
+		**
 		**  This is based on experimentation and on reading
 		**  sendmail/headers.c, and may require more tweaking before
 		**  it's precisely right.  There are other munges the
@@ -11433,7 +11440,7 @@ mlfi_header(SMFICTX *ctx, char *headerf, char *headerv)
 
 			return SMFIS_TEMPFAIL;
 		}
-	
+
 		for (rep = conf->conf_replist;
 		     rep != NULL;
 		     rep = rep->repl_next)
@@ -11629,7 +11636,7 @@ mlfi_eoh(SMFICTX *ctx)
 		if (from == NULL && !didfrom)
 			from = dkimf_findheader(dfc, "from", 0);
 	}
-  
+
   	if (from != NULL)
 		dkimf_dstring_copy(addr, from->hdr_val);
 
@@ -12140,7 +12147,7 @@ mlfi_eoh(SMFICTX *ctx)
 
 	/* still no key selected; check the signing table (if any) */
 	if (originok && dfc->mctx_srhead == NULL &&
-	    (user != NULL && dfc->mctx_domain[0] != '\0') && 
+	    (user != NULL && dfc->mctx_domain[0] != '\0') &&
 #ifdef _FFR_LUA_ONLY_SIGNING
 	    !conf->conf_luasigning &&
 #endif /* _FFR_LUA_ONLY_SIGNING */
@@ -12299,7 +12306,7 @@ mlfi_eoh(SMFICTX *ctx)
 	*/
 
 	/* signing requests with signing mode disabled */
-	if (dfc->mctx_srhead != NULL && 
+	if (dfc->mctx_srhead != NULL &&
 	    (conf->conf_mode & DKIMF_MODE_SIGNER) == 0)
 		return SMFIS_ACCEPT;
 
@@ -12619,7 +12626,7 @@ mlfi_eoh(SMFICTX *ctx)
 					idset = TRUE;
 				}
 			}
-		
+
 			if (!idset && conf->conf_dolog)
 			{
 				syslog(LOG_INFO,
@@ -12629,7 +12636,7 @@ mlfi_eoh(SMFICTX *ctx)
 			}
 		}
 #endif /* _FFR_IDENTITY_HEADER */
-				
+
 		if (!idset)
 		{
 			snprintf((char *) identity, sizeof identity, "@%s",
@@ -12803,7 +12810,7 @@ mlfi_eoh(SMFICTX *ctx)
 
 			/* set the VBR transaction type */
 			(void) vbr_settype(dfc->mctx_vbr, (u_char *) vbr_type);
-	
+
 			/* set the VBR certifier list */
 			(void) vbr_setcert(dfc->mctx_vbr, (u_char *) vbr_cert);
 
@@ -12915,7 +12922,7 @@ mlfi_eoh(SMFICTX *ctx)
 
 #ifdef _FFR_IDENTITY_HEADER
 		if (conf->conf_identityhdr != NULL &&
-		    conf->conf_rmidentityhdr && 
+		    conf->conf_rmidentityhdr &&
 		    dfc->mctx_srhead != NULL &&
 		    strcasecmp(conf->conf_identityhdr, hdr->hdr_hdr) == 0)
 			continue;
@@ -12942,7 +12949,7 @@ mlfi_eoh(SMFICTX *ctx)
 #ifdef _FFR_REPUTATION
 		/* check for spam flag */
 		if (conf->conf_repspamcheck != NULL &&
-		    regexec(&conf->conf_repspamre, 
+		    regexec(&conf->conf_repspamre,
 		            dkimf_dstring_get(dfc->mctx_tmpstr),
 		            0, NULL, 0) == 0)
 			dfc->mctx_spam = TRUE;
@@ -13340,7 +13347,7 @@ mlfi_eom(SMFICTX *ctx)
 	    dfc->mctx_srhead != NULL)
 	{
 		struct Header *hdr;
-		
+
 		hdr = dkimf_findheader(dfc, conf->conf_identityhdr, 0);
 		if (hdr != NULL)
 		{
@@ -13357,7 +13364,7 @@ mlfi_eom(SMFICTX *ctx)
 		}
 	}
 #endif /* _FFR_IDENTITY_HEADER */
-					
+
 	/* log something if the message was multiply signed */
 	if (dfc->mctx_dkimv != NULL && conf->conf_dolog)
 	{
@@ -13482,7 +13489,7 @@ mlfi_eom(SMFICTX *ctx)
 				slash = strchr((char *) ares->ares_host, '/');
 				if (slash != NULL)
 					*slash = '\0';
-					
+
 				if (conf->conf_remardb != NULL)
 				{
 					status = dkimf_db_get(conf->conf_remardb,
@@ -13790,7 +13797,7 @@ mlfi_eom(SMFICTX *ctx)
 					fclose(f);
 				}
 			}
-		}	
+		}
 
 		if (dfc->mctx_status == DKIMF_STATUS_GOOD)
 		{
@@ -14576,7 +14583,7 @@ mlfi_eom(SMFICTX *ctx)
 				vbr_certifier = NULL;
 				vbr_vouchers = NULL;
 				vbr_type = NULL;
-	
+
 				/* break out the VBR-Info header contents */
 				strlcpy(tmp, vbr_header->hdr_val, sizeof tmp);
 				for (p = strtok_r(tmp, ";", &sctx);
@@ -14624,7 +14631,7 @@ mlfi_eom(SMFICTX *ctx)
 						vbr_vouchers = (char *) value;
 					}
 				}
-			
+
 				/* confirm a valid signature was there */
 				if (dfc->mctx_dkimv != NULL &&
 				    dkim_getsiglist(dfc->mctx_dkimv,
@@ -14646,7 +14653,7 @@ mlfi_eom(SMFICTX *ctx)
 						}
 					}
 				}
-				
+
 				if (vbr_validsig)
 				{
 					/* use accessors to set parsed values */
@@ -14656,7 +14663,7 @@ mlfi_eom(SMFICTX *ctx)
 					            (u_char *) vbr_type);
 					vbr_setdomain(dfc->mctx_vbr,
 					              (u_char *) vbr_domain);
-		
+
 					/* attempt the query */
 					vbr_status = vbr_query(dfc->mctx_vbr,
 					                       (u_char **) &vbr_result,
@@ -14739,7 +14746,7 @@ mlfi_eom(SMFICTX *ctx)
 						        vbr_certifier,
 						        sizeof header);
 					}
-		
+
 					if (dkimf_insheader(ctx, 1,
 					                    AUTHRESULTSHDR,
 					                    (char *) header) == MI_FAILURE)
@@ -15823,7 +15830,7 @@ main(int argc, char **argv)
 				        progname, query);
 				return EX_USAGE;
 			}
-	
+
 			result = (char **) malloc(sizeof(char *) * n);
 			if (result == NULL)
 			{
